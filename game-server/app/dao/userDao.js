@@ -3,6 +3,7 @@ var pomelo = require('pomelo');
 var dataApi = require('../util/dataApi');
 var Player = require('../domain/entity/player');
 var User = require('../domain/user');
+var Account = require('../domain/account');
 var consts = require('../consts/consts');
 var equipmentsDao = require('./equipmentsDao');
 var bagDao = require('./bagDao');
@@ -20,22 +21,19 @@ var userDao = module.exports;
  * @param {String} passwd
  * @param {function} cb
  */
-userDao.getUserInfo = function (username, passwd, cb) {
-	var sql = 'select * from	User where name = ?';
-	var args = [username];
-
+userDao.getUserInfo = function (account, passwd, cb) {
+	var sql = 'select a.id,a.passwd,b.nickname,b.sex,b.photo,b.coin,b.zuan,b.signature,b.contect,b.vipExp from zjhaccount a join zjhuser b on a.id = b.id and a.id = ? and a.passwd = ?';
+	var args = [account,passwd];
 	pomelo.app.get('dbclient').query(sql,args,function(err, res) {
 		if(err !== null) {
 				utils.invokeCallback(cb, err, null);
 		} else {
-			var userId = 0;
+			console.log("this is get user info:" + account + passwd)
 			if (!!res && res.length === 1) {
-				var rs = res[0];
-				userId = rs.id;
-				rs.uid = rs.id;
-				utils.invokeCallback(cb,null, rs);
+				var user = new User(res[0]);	
+				utils.invokeCallback(cb, null, user);
 			} else {
-				utils.invokeCallback(cb, null, {uid:0, username: username});
+				utils.invokeCallback(cb,{result:messageCode.LOGIN.INVALD_USERNAME_PASSWD,msg:""},null);
 			}
 		}
 	});
@@ -116,8 +114,8 @@ userDao.checkIdentifier = function(identifier,cb){ //检测唯一标识
 		} else if (!res || res.length <= 0){
 			utils.invokeCallback(cb, -1, null);
 		} else{
-			var user = new User({id: res.insertId, identifier: res.identifier,unionid:res.unionid,system:res.system,pv:res.pv,netmode:res.netmode,nickname:res.nickname,phone:res.phone||0,versionName:res.versionName,versionCode:res.versionCode,passwd:res.passwd,lastLoginTime:res.loginTime});
-			utils.invokeCallback(cb, null, user);
+			var account = new Account(res[0]);
+			utils.invokeCallback(cb, null, account);
 		}
 	});
 }
@@ -271,38 +269,68 @@ userDao.createAccount = function (regiserInfo, cb){
 		identifier = utils.base64encode(regiserInfo.imei + regiserInfo.imsi + regiserInfo.mac)
 	}
 
-	userDao.checkIdentifier(identifier,function(err,user) { //检测到重复帐号直接返回重复帐号
+	userDao.checkIdentifier(identifier,function(err,account) { //检测到重复帐号直接返回重复帐号
 		if (err == null){
-			utils.invokeCallback(cb, null, user);
+			utils.invokeCallback(cb, null, account);
 			return;
 		}
 	})
 
 
-	var sql_client = pomelo.app.get('dbclient')
-	sql_client.query("begin");
-
-	var sql = 'insert into zjhaccount(identifier,unionid,system,pv,netmode,nickname,phone,versionName,versionCode,passwd,lastLoginTime) values(?,?,?,?,?,?,?,?,?,?,?)';
-	var loginTime = Date.now();
-	var user = null;
-	var args = [identifier, regiserInfo.unionid,regiserInfo.system,regiserInfo.pv,regiserInfo.netmode,regiserInfo.nickname,regiserInfo.phone || "",regiserInfo.versionName,regiserInfo.versionCode,regiserInfo.passwd,loginTime];
-	pomelo.app.get('dbclient').insert(sql, args, function(err,res){
-		if(err !== null){
-			sql_client.query("rollback");
-			utils.invokeCallback(cb, {code: err.number, msg: err.message}, null);
-		} else {
-			user = new User({id: res.insertId, identifier: regiserInfo.identifier,unionid:regiserInfo.unionid,system:regiserInfo.system,pv:regiserInfo.pv,netmode:regiserInfo.netmode,nickname:regiserInfo.nickname,phone:regiserInfo.phone||'',versionName:regiserInfo.versionName,versionCode:regiserInfo.versionCode,passwd:regiserInfo.passwd,lastLoginTime:loginTime});
-			// utils.invokeCallback(cb, null, user);
+	async.waterfall([ //首先创建账号然后生成玩家数据
+		function(callback) {
+			// body...
+			var sql = 'insert into zjhaccount (identifier,unionid,system,pv,netmode,nickname,phone,versionName,versionCode,passwd,lastLoginTime) values(?,?,?,?,?,?,?,?,?,?,?)';
+			var loginTime = Date.now();
+			var passwd_str = identifier.substr(0, 10)
+			var args = [identifier, regiserInfo.unionid,regiserInfo.system,regiserInfo.pv,regiserInfo.netmode,regiserInfo.nickname,regiserInfo.phone || 0,regiserInfo.versionName,regiserInfo.versionCode,passwd_str,loginTime];
+			pomelo.app.get('dbclient').insert(sql, args, function(err,res){
+				if(err !== null){
+					callback(err,null)
+				} else {
+					var account = new Account({id: res.insertId, identifier: regiserInfo.identifier,unionid:regiserInfo.unionid,system:regiserInfo.system,pv:regiserInfo.pv,netmode:regiserInfo.netmode,nickname:regiserInfo.nickname,phone:regiserInfo.phone||'',versionName:regiserInfo.versionName,versionCode:regiserInfo.versionCode,passwd:res.passwd,lastLoginTime:loginTime});
+					// utils.invokeCallback(cb, null, user);
+					console.log("this is create a new account");
+					callback(null,account)
+					
+				}
+			});
+		},
+		function(account,callback){
+            var sql = 'insert into zjhuser(id,vipExp,nickname,sex,signature,contect,coin,zuan,photo) values(?,?,?,?,?,?,?,?,?)';
+            var args = [account.id,0,account.nickname,0,'','',0,0,''];
+            pomelo.app.get('dbclient').insert(sql, args, function(err,res){
+				if(err !== null){
+					callback(err,null)
+				} else {
+					console.log("this is create a new user");
+					utils.invokeCallback(cb,null,account);
+				}
+			});
 		}
-	});
-
-
-	var sql = "insert into zjhuser()"
-	pomelo.app.get('dbclient').query("")
-
-	
+		],function(err,result){
+			utils.invokeCallback(cb, {code: err.number, msg: err.message}, null);
+			console.log(result);
+		}
+		);	
 };
 
+
+userDao.checkAccount = function(loginInfo,cb){
+	userDao.getUserInfo(loginInfo.account,loginInfo.passwd,function(err,user){
+		if (err != null){
+			cb(err,null,null,null)
+		}else{ //当前帐号存在
+			utils.invokeCallback(cb,null,user,null)
+			// userDao.insertLoginInfo(loginInfo,user,cb)
+		}
+	});
+}
+
+
+userDao.insertLoginInfo = function(loginInfo,user,cb){ //插入登录数据
+
+}
 /**
  * Create a new user
  * @param (String) username
@@ -310,7 +338,7 @@ userDao.createAccount = function (regiserInfo, cb){
  * @param {String} from Register source
  * @param {function} cb Call back function.
  */
-userDao.createUser = function (regiserInfo, cb){
+userDao.createUser = function (regiserInfo,cb){
 	var identifier = "";
 	if (regiserInfo.imei === null || regiserInfo.imsi === null || regiserInfo.mac === null){
 		utils.invokeCallback(cb, {code: messageCode.REGISTER.IDENTIFIER_ERROR, msg:"please check imei ,imsi ,mac"}, null);
@@ -319,12 +347,10 @@ userDao.createUser = function (regiserInfo, cb){
 		identifier = utils.base64encode(regiserInfo.imei + regiserInfo.imsi + regiserInfo.mac)
 	}
 
-
 	async.waterfall([ //首先创建账号然后生成玩家数据
-
 		function(callback) {
 			// body...
-			var sql = 'insert into zjhaccount (identifier,unionid,system,pv,netmode,nickname,phone,versionName,versionCode,passwd,lastLoginTime) values(?,?,?,?,?)';
+			var sql = 'insert into zjhaccount (identifier,unionid,system,pv,netmode,nickname,phone,versionName,versionCode,passwd,lastLoginTime) values(?,?,?,?,?,?,?,?,?,?,?)';
 			var loginTime = Date.now();
 			var args = [identifier, regiserInfo.unionid,regiserInfo.system,regiserInfo.pv,regiserInfo.netmode,regiserInfo.nickname,regiserInfo.phone || 0,regiserInfo.versionName,regiserInfo.versionCode,regiserInfo.passwd,loginTime];
 			pomelo.app.get('dbclient').insert(sql, args, function(err,res){
@@ -333,12 +359,23 @@ userDao.createUser = function (regiserInfo, cb){
 				} else {
 					var user = new User({id: res.insertId, identifier: regiserInfo.identifier,unionid:regiserInfo.unionid,system:regiserInfo.system,pv:regiserInfo.pv,netmode:regiserInfo.netmode,nickname:regiserInfo.nickname,phone:regiserInfo.phone||'',versionName:regiserInfo.versionName,versionCode:regiserInfo.versionCode,passwd:regiserInfo.passwd,lastLoginTime:loginTime});
 					// utils.invokeCallback(cb, null, user);
+					console.log("this is create a new account");
 					callback(null,user)
+					
 				}
 			});
 		},
 		function(user,callback){
-
+            var sql = 'insert into zjhuser(id,nickname,sex,signature,contect,coin,zuan,photo) values(?,?,?,?,?,?,?,?)';
+            var args = [user.id,user.nickname,0,'','',0,0,''];
+            pomelo.app.get('dbclient').insert(sql, args, function(err,res){
+				if(err !== null){
+					callback(err,null)
+				} else {
+					console.log("this is create a new user");
+					utils.invokeCallback(cb,null,user);
+				}
+			});
 		}
 		],function(err,result){
 			utils.invokeCallback(cb, {code: err.number, msg: err.message}, null);

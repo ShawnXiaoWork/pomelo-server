@@ -8,6 +8,10 @@ var exp = module.exports;
  * Handle player event
  */
 exp.addEventForPlayer = function (player){
+
+	player.on('bet',function(){//玩家下注
+		logger.debug('event.onBet:' + player.id);
+	});
 	/**
 	 * Handler upgrade event for player, the message will be pushed only to the one who upgrade
 	 */

@@ -19,6 +19,27 @@ var Handler = function(app) {
 
 var pro = Handler.prototype;
 
+
+pro.login = function(msg,session,next) {
+	// body...
+	userDao.checkAccount(msg, function(err,user,loginInfo) {
+    if (err || !user) {
+      console.error(err);
+      next(err.code);
+    } else {
+      console.log('login success'+ user.id + user.coin + user.zuan);
+      var data = {
+      	msgId:msg.msgId,
+      	result:0,
+      	userInfo:{
+      		uid:user.id,coin:user.coin,zuan:user.zuan,sex:user.sex,name:user.nickname,vip:user.vipExp
+      	}
+      };
+      next(null,data);
+    }
+  });
+}
+
 /**
  * New client entry game server. Check token and bind user info into session.
  *
@@ -89,8 +110,10 @@ pro.entry = function(msg, session, next) {
 };
 
 
+
+
 //创建帐号
-function registerAccount(registerInfo,cb){
+var registerAccount =  function(registerInfo,cb){
 
 	userDao.createAccount(registerInfo, function(err, user) {
     if (err || !user) {

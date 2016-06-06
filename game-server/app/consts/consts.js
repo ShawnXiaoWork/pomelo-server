@@ -45,12 +45,12 @@ module.exports = {
   },
 
   EntityType: {
-    PLAYER: 'player',
-    NPC: 'npc',
-    MOB: 'mob',
-    EQUIPMENT: 'equipment',
-    ITEM: 'item',
-    BAG: 'bag'
+    JSYS_ENTER:2028,
+    JSYS_EXIT:2005,
+    JSYS_START_BET:2028,
+    JSYS_REQ_BET:2030,
+    JSYS_STATUS_INFO:2031,
+    JSYS_RESULT:2032 
   },
 
   Pick: {

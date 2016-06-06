@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `ZjhAccount` (
 
 CREATE TABLE IF NOT EXISTS `ZjhUser` (
   `id` smallint(11) unsigned NOT NULL,
+  `vipExp` smallint(11) COLLATE utf8_unicode_ci DEFAULT '0',
   `nickname` varchar(25) COLLATE utf8_unicode_ci NOT NULL,
   `sex` smallint(6) COLLATE utf8_unicode_ci DEFAULT '0',
   `signature` varchar(50) COLLATE utf8_unicode_ci DEFAULT '',

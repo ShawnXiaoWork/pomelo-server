@@ -9,23 +9,19 @@
  * @api public
  */
 
-var User = function(opts) {
+var User = function(opts){
 	this.id = opts.id;
-	this.nickname = opts.nickname;
-	this.identifier = opts.identifier
-	this.unionid = opts.unionid
-	this.system = opts.system
-	this.pv = opts.pv
-	this.netmode = opts.netmode
-	this.phone = opts.phone
-	this.versionName = opts.versionName
-	this.versionCode = opts.versionCode
-	this.passwd = opts.passwd
-	this.lastLoginTime = opts.lastLoginTime;
+	this.nickname = opts.nickname
+	this.sex = opts.sex
+	this.photo = opts.photo
+	this.coin = opts.coin
+	this.zuan = opts.zuan
+	this.signature = opts.signature
+	this.contect = opts.contect
+	this.vipExp = opts.vipExp
 };
 
 /**
  * Expose 'Entity' constructor
  */
-
 module.exports = User;

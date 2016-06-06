@@ -7,6 +7,7 @@ var dataApi = require('./app/util/dataApi');
 var routeUtil = require('./app/util/routeUtil');
 var playerFilter = require('./app/servers/area/filter/playerFilter');
 var ChatService = require('./app/services/chatService');
+var JsysService = require('./app/services/jsysService');
 var sync = require('pomelo-sync-plugin');
 // var masterhaPlugin = require('pomelo-masterha-plugin');
 
@@ -74,6 +75,7 @@ app.configure('production|development', 'auth', function() {
 	// load session congfigures
 	app.set('session', require('./config/session.json'));
 });
+
 
 // Configure for area server
 app.configure('production|development', 'area', function(){
@@ -155,6 +157,11 @@ app.configure('production|development', 'gate', function(){
 // Configure for chat server
 app.configure('production|development', 'chat', function() {
 	app.set('chatService', new ChatService(app));
+});
+
+// Configure for jsys server
+app.configure('production|development','jsys',function(){
+	app.set('jsysService', new JsysService(app));
 });
 
 //start
